@@ -121,7 +121,7 @@ export function initApp() {
   
   // Initial route
   if (!window.location.hash) {
-    window.location.hash = '#/map';
+    window.location.hash = '#/overview';
   } else {
     handleRoute();
   }

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Quản Trị Nông Nghiệp</title>
+    <link rel="stylesheet" href="./css/giao-dien.css">
+    
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Geoman (Draw & Edit) -->
+    <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.css" />
+    <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.min.js"></script>
+
+    <!-- Leaflet Heatmap -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    
+    <!-- Turf.js for spatial analysis (area calculation) -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- App content injected by JS -->
+    </div>
+    <div id="error-log" style="color: red; padding: 20px; font-family: monospace;"></div>
+
+    <script>
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        document.getElementById('error-log').innerHTML += `<p>${msg} at ${url}:${lineNo}</p>`;
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        document.getElementById('error-log').innerHTML += `<p>Unhandled promise rejection: ${event.reason}</p>`;
+      });
+    </script>
+
+    <script type="module">
+        import { initApp } from './js/ung-dung.js';
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>

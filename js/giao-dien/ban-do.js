@@ -2,7 +2,8 @@
 // 🌱 VIEW: BẢN ĐỒ MÔI TRƯỜNG ĐA CẤP (Leaflet)
 // ============================================
 
-import { FARM_PLOTS, FARM_CENTER } from '../../du-lieu/du-lieu-gis.js';
+import { generatePlotsForCoordinate } from '../../du-lieu/du-lieu-gis.js';
+import { showModal, showToast } from '../thanh-phan/hop-thoai.js';
 
 let mapInstance = null;
 let geojsonLayer = null; // Lớp Tỉnh (Polygon)
@@ -201,78 +202,10 @@ function initializeMap() {
     }).addTo(mapInstance);
   });
 
-  // 2. LOAD VÀ XÂY DỰNG DATA TREE
-  fetch('https://raw.githubusercontent.com/TungTh/tungth.github.io/master/data/vn-provinces.json')
-    .then(res => res.json())
-    .then(data => {
-      let seedCounter = 100;
-      // Trích xuất center để build Tree
-      data.features.forEach(f => {
-        const name = f.properties.Ten || f.properties.Name;
-        // Lấy tọa độ trung tâm xấp xỉ từ điểm đầu tiên của polygon
-        const coords = f.geometry.coordinates[0][0]; 
-        let centerLat = coords[1];
-        let centerLng = coords[0];
-        // Tính trung bình các điểm để ra center thực hơn
-        if (f.geometry.coordinates[0].length > 10) {
-           const mid = Math.floor(f.geometry.coordinates[0].length / 2);
-           centerLat = (coords[1] + f.geometry.coordinates[0][mid][1]) / 2;
-           centerLng = (coords[0] + f.geometry.coordinates[0][mid][0]) / 2;
-        }
+  // 2. LOAD VÀ XÂY DỰNG DATA TREE — dùng file local thay vì fetch từ GitHub
+  loadProvinceData();
 
-        buildDataTreeForProvince(name, centerLat, centerLng, seedCounter++);
-      });
-
-      // Tạo Polygon
-      geojsonLayer = L.geoJSON(data, {
-        style: function(feature) {
-          const name = feature.properties.Ten || feature.properties.Name;
-          const provinceData = HIERARCHY_DATA.provinces[name];
-          if (!provinceData) return {};
-          return {
-            fillColor: getColorByTemp(provinceData.env.temp),
-            weight: 1.5, opacity: 1, color: '#ffffff', fillOpacity: 0.6
-          };
-        },
-        onEachFeature: function(feature, layer) {
-          const name = feature.properties.Ten || feature.properties.Name;
-          const pData = HIERARCHY_DATA.provinces[name];
-          if (!pData) return;
-          
-          layer.bindTooltip(`<strong>${name}</strong><br/>🌡 ${pData.env.temp.toFixed(1)}°C`, { direction: 'auto' });
-
-          layer.on({
-            mouseover: function(e) {
-              if (mapInstance.getZoom() < ZOOM_LEVELS.PROVINCE) {
-                e.target.setStyle({ weight: 3, fillOpacity: 0.9 }); e.target.bringToFront();
-              }
-            },
-            mouseout: function(e) { geojsonLayer.resetStyle(e.target); },
-            click: function(e) {
-              if (mapInstance.getZoom() < ZOOM_LEVELS.PROVINCE) {
-                activeProvinceId = name;
-                mapInstance.fitBounds(e.target.getBounds());
-                updateDashboard(pData, 'CẤP TỈNH / THÀNH PHỐ', HIERARCHY_DATA.districts);
-                renderDistrictsOnMap(pData);
-              }
-            }
-          });
-        }
-      }).addTo(mapInstance);
-    });
-
-  // 3. TÍCH HỢP LỚP THỬA ĐẤT TỪ DU-LIEU-GIS.JS
-  L.geoJSON(FARM_PLOTS, {
-    style: { color: '#ffffff', weight: 2, fillColor: '#10b981', fillOpacity: 0.8 },
-    onEachFeature: function(feature, layer) {
-      const props = feature.properties;
-      layer.on('click', function() {
-        const mockEnv = { temp: 24.5, humidity: 82, aqi: 45, rainfall: 2.1 };
-        updateDashboard({ name: `Thửa: ${props.name} (${props.crop})`, env: mockEnv }, 'CẤP LÔ / THỬA ĐẤT', null, true);
-      });
-      layer.bindTooltip(`Thửa: ${props.name} <br> Cây trồng: ${props.crop}`, { direction: 'top' });
-    }
-  }).addTo(plotLayer);
+  // 3. LỚP THỬA ĐẤT (Sẽ được render động khi click vào Xã)
 
   // 4. ZOOM LISTENER ĐỂ CHUYỂN LAYER
   mapInstance.on('zoomend', function() {
@@ -323,6 +256,89 @@ function initializeMap() {
   });
 }
 
+// --- LOAD PROVINCE DATA (local file với fallback) ---
+function loadProvinceData() {
+  // Thử load từ file local trước, fallback sang remote
+  fetch('./du-lieu/vn-provinces.json')
+    .then(res => {
+      if (!res.ok) throw new Error('Local file not found');
+      return res.json();
+    })
+    .catch(() => {
+      // Fallback: fetch từ remote
+      showToast('Đang tải dữ liệu bản đồ từ server...', 'info');
+      return fetch('https://raw.githubusercontent.com/TungTh/tungth.github.io/master/data/vn-provinces.json')
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        });
+    })
+    .then(data => {
+      processProvinceData(data);
+    })
+    .catch(err => {
+      console.error('Không thể tải dữ liệu bản đồ:', err);
+      showToast('Không thể tải dữ liệu bản đồ tỉnh/thành. Kiểm tra kết nối mạng.', 'error', 5000);
+    });
+}
+
+function processProvinceData(data) {
+  let seedCounter = 100;
+  // Trích xuất center để build Tree
+  data.features.forEach(f => {
+    const name = f.properties.Ten || f.properties.Name;
+    // Lấy tọa độ trung tâm xấp xỉ từ điểm đầu tiên của polygon
+    const coords = f.geometry.coordinates[0][0]; 
+    let centerLat = coords[1];
+    let centerLng = coords[0];
+    // Tính trung bình các điểm để ra center thực hơn
+    if (f.geometry.coordinates[0].length > 10) {
+       const mid = Math.floor(f.geometry.coordinates[0].length / 2);
+       centerLat = (coords[1] + f.geometry.coordinates[0][mid][1]) / 2;
+       centerLng = (coords[0] + f.geometry.coordinates[0][mid][0]) / 2;
+    }
+
+    buildDataTreeForProvince(name, centerLat, centerLng, seedCounter++);
+  });
+
+  // Tạo Polygon
+  geojsonLayer = L.geoJSON(data, {
+    style: function(feature) {
+      const name = feature.properties.Ten || feature.properties.Name;
+      const provinceData = HIERARCHY_DATA.provinces[name];
+      if (!provinceData) return {};
+      return {
+        fillColor: getColorByTemp(provinceData.env.temp),
+        weight: 1.5, opacity: 1, color: '#ffffff', fillOpacity: 0.6
+      };
+    },
+    onEachFeature: function(feature, layer) {
+      const name = feature.properties.Ten || feature.properties.Name;
+      const pData = HIERARCHY_DATA.provinces[name];
+      if (!pData) return;
+      
+      layer.bindTooltip(`<strong>${name}</strong><br/>🌡 ${pData.env.temp.toFixed(1)}°C`, { direction: 'auto' });
+
+      layer.on({
+        mouseover: function(e) {
+          if (mapInstance.getZoom() < ZOOM_LEVELS.PROVINCE) {
+            e.target.setStyle({ weight: 3, fillOpacity: 0.9 }); e.target.bringToFront();
+          }
+        },
+        mouseout: function(e) { geojsonLayer.resetStyle(e.target); },
+        click: function(e) {
+          if (mapInstance.getZoom() < ZOOM_LEVELS.PROVINCE) {
+            activeProvinceId = name;
+            mapInstance.fitBounds(e.target.getBounds());
+            updateDashboard(pData, 'CẤP TỈNH / THÀNH PHỐ', HIERARCHY_DATA.districts);
+            renderDistrictsOnMap(pData);
+          }
+        }
+      });
+    }
+  }).addTo(mapInstance);
+}
+
 // --- RENDER LAYER HELPERS ---
 function renderDistrictsOnMap(provinceData) {
   districtLayer.clearLayers();
@@ -361,10 +377,47 @@ function renderCommunesOnMap(districtData) {
       mapInstance.setView([cData.lat, cData.lng], ZOOM_LEVELS.COMMUNE + 1);
       updateDashboard(cData, 'CẤP XÃ / PHƯỜNG', null);
       
-      // MẸO DEMO: Click Xã -> Dẫn về khu Thửa Đất Nông nghiệp
-      setTimeout(() => {
-        if (confirm("Đi tới khu vực Thửa Đất Nông Nghiệp chi tiết (Demo ở Lâm Đồng)?")) {
-           mapInstance.setView([FARM_CENTER[1], FARM_CENTER[0]], ZOOM_LEVELS.PLOT + 1);
+      // Dùng custom modal thay confirm()
+      setTimeout(async () => {
+        const confirmed = await showModal({
+          title: 'Xem khu vực Thửa Đất chi tiết',
+          message: `Bạn có muốn xem chi tiết bản đồ phân lô Thửa Đất tại ${cData.name}?`,
+          confirmText: 'Đi tới',
+          cancelText: 'Ở lại',
+          type: 'map'
+        });
+        if (confirmed) {
+           // Clear thửa đất cũ
+           plotLayer.clearLayers();
+           
+           // Sinh tọa độ đa giác động quanh tâm xã
+           const dynamicPlots = generatePlotsForCoordinate(cData.lat, cData.lng, cData.name);
+           
+           L.geoJSON(dynamicPlots, {
+             style: { color: '#ffffff', weight: 2, fillColor: '#10b981', fillOpacity: 0.6 },
+             onEachFeature: function(feature, layer) {
+               const props = feature.properties;
+               
+               // Hover effect
+               layer.on('mouseover', function(e) {
+                 e.target.setStyle({ fillOpacity: 0.9, weight: 3 });
+               });
+               layer.on('mouseout', function(e) {
+                 e.target.setStyle({ fillOpacity: 0.6, weight: 2 });
+               });
+               
+               // Click để xem dashboard chi tiết của thửa
+               layer.on('click', function() {
+                 const mockEnv = { temp: cData.env.temp, humidity: cData.env.humidity, aqi: cData.env.aqi, rainfall: cData.env.rainfall };
+                 updateDashboard({ name: `${props.name} (${props.crop})`, env: mockEnv }, 'CẤP LÔ / THỬA ĐẤT', null, true);
+               });
+               
+               layer.bindTooltip(`<strong>${props.name}</strong><br>Cây trồng: ${props.crop}<br>Diện tích: ${props.area}<br>Trạng thái: ${props.status === 'ok' ? 'Bình thường' : 'Cần chú ý'}`, { direction: 'top' });
+             }
+           }).addTo(plotLayer);
+           
+           // Zoom sát xuống
+           mapInstance.setView([cData.lat, cData.lng], ZOOM_LEVELS.PLOT);
         }
       }, 500);
     });
@@ -372,15 +425,50 @@ function renderCommunesOnMap(districtData) {
 }
 
 // --- DASHBOARD RENDERER ---
-window.triggerMapRegionClick = function(lat, lng, levelType) {
-  // Hàm này được gọi từ các dòng trong Sub-regions list
-  // Để mô phỏng click trên map
+function triggerMapRegionClick(childId, levelType) {
   if (levelType === 'district') {
-     mapInstance.setView([lat, lng], ZOOM_LEVELS.DISTRICT + 1);
+     const dData = HIERARCHY_DATA.districts[childId];
+     if(!dData) return;
+     activeDistrictId = childId;
+     mapInstance.setView([dData.lat, dData.lng], ZOOM_LEVELS.DISTRICT + 1);
+     updateDashboard(dData, 'CẤP QUẬN / HUYỆN', HIERARCHY_DATA.communes);
+     renderCommunesOnMap(dData);
   } else if (levelType === 'commune') {
-     mapInstance.setView([lat, lng], ZOOM_LEVELS.COMMUNE + 1);
+     const cData = HIERARCHY_DATA.communes[childId];
+     if(!cData) return;
+     mapInstance.setView([cData.lat, cData.lng], ZOOM_LEVELS.COMMUNE + 1);
+     updateDashboard(cData, 'CẤP XÃ / PHƯỜNG', null);
+     
+     // Hiển thị modal chọn thửa đất
+     setTimeout(async () => {
+       const confirmed = await showModal({
+         title: 'Xem khu vực Thửa Đất chi tiết',
+         message: `Bạn có muốn xem chi tiết bản đồ phân lô Thửa Đất tại ${cData.name}?`,
+         confirmText: 'Đi tới',
+         cancelText: 'Ở lại',
+         type: 'map'
+       });
+       if (confirmed) {
+          plotLayer.clearLayers();
+          const dynamicPlots = generatePlotsForCoordinate(cData.lat, cData.lng, cData.name);
+          L.geoJSON(dynamicPlots, {
+            style: { color: '#ffffff', weight: 2, fillColor: '#10b981', fillOpacity: 0.6 },
+            onEachFeature: function(feature, layer) {
+              const props = feature.properties;
+              layer.on('mouseover', e => e.target.setStyle({ fillOpacity: 0.9, weight: 3 }));
+              layer.on('mouseout', e => e.target.setStyle({ fillOpacity: 0.6, weight: 2 }));
+              layer.on('click', function() {
+                const mockEnv = { temp: cData.env.temp, humidity: cData.env.humidity, aqi: cData.env.aqi, rainfall: cData.env.rainfall };
+                updateDashboard({ name: `${props.name} (${props.crop})`, env: mockEnv }, 'CẤP LÔ / THỬA ĐẤT', null, true);
+              });
+              layer.bindTooltip(`<strong>${props.name}</strong><br>Cây trồng: ${props.crop}<br>Diện tích: ${props.area}<br>Trạng thái: ${props.status === 'ok' ? 'Bình thường' : 'Cần chú ý'}`, { direction: 'top' });
+            }
+          }).addTo(plotLayer);
+          mapInstance.setView([cData.lat, cData.lng], ZOOM_LEVELS.PLOT);
+       }
+     }, 500);
   }
-};
+}
 
 function updateDashboard(nodeData, levelText, childStoreToLookup, isPlot = false) {
   document.getElementById('env-panel').style.display = 'flex';
@@ -404,7 +492,7 @@ function updateDashboard(nodeData, levelText, childStoreToLookup, isPlot = false
     plotExtra.style.display = 'none';
   }
 
-  // Danh sách khu vực trực thuộc
+  // Danh sách khu vực trực thuộc — dùng event delegation
   const subContainer = document.getElementById('sub-regions-container');
   const subList = document.getElementById('sub-regions-list');
   
@@ -413,19 +501,36 @@ function updateDashboard(nodeData, levelText, childStoreToLookup, isPlot = false
     let html = '';
     nodeData.children.forEach(childId => {
        const child = childStoreToLookup[childId];
-       // Phân biệt Huyện và Xã cho hàm trigger
        const lvlType = levelText.includes('TỈNH') ? 'district' : 'commune';
        html += `
-         <div onclick="triggerMapRegionClick(${child.lat}, ${child.lng}, '${lvlType}')" 
-              style="display:flex; justify-content:space-between; padding:8px 10px; background:var(--bg-input); border-radius:4px; cursor:pointer; border:1px solid transparent;"
-              onmouseover="this.style.borderColor='var(--border-accent)'"
-              onmouseout="this.style.borderColor='transparent'">
+         <div class="sub-region-item" data-id="${childId}" data-level="${lvlType}"
+              style="display:flex; justify-content:space-between; padding:8px 10px; background:var(--bg-input); border-radius:4px; cursor:pointer; border:1px solid transparent; transition: border-color 0.15s ease;"
+              >
             <span style="font-weight:bold; font-size:13px; color:var(--text-primary);">${child.name}</span>
             <span style="font-size:13px; color:var(--text-secondary);">🌡 ${child.env.temp.toFixed(1)}°C</span>
          </div>
        `;
     });
     subList.innerHTML = html;
+
+    // Dùng onclick để ghi đè (tránh trùng lặp listener khi gọi nhiều lần)
+    subList.onclick = function(e) {
+      const item = e.target.closest('.sub-region-item');
+      if (!item) return;
+      const id = item.dataset.id;
+      const level = item.dataset.level;
+      triggerMapRegionClick(id, level);
+    };
+
+    // Hover effect
+    subList.onmouseover = function(e) {
+      const item = e.target.closest('.sub-region-item');
+      if (item) item.style.borderColor = 'var(--border-accent)';
+    };
+    subList.onmouseout = function(e) {
+      const item = e.target.closest('.sub-region-item');
+      if (item) item.style.borderColor = 'transparent';
+    };
   } else {
     subContainer.style.display = 'none';
   }

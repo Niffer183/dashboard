@@ -6,6 +6,8 @@ import { AREAS, getZonesByArea, getAlertsByArea } from '../../du-lieu/du-lieu-ma
 import { renderStatusBadge, renderStatusDot } from '../thanh-phan/nhan-trang-thai.js';
 import { renderAlertList } from '../thanh-phan/danh-sach-canh-bao.js';
 
+import { generatePlotsForCoordinate } from '../../du-lieu/du-lieu-gis.js';
+
 export function initAreaDetail(container, params) {
   const areaId = params.id;
   const area = AREAS.find(a => a.id === areaId);
@@ -26,7 +28,7 @@ export function initAreaDetail(container, params) {
   ]);
 
   let html = `
-    <button class="back-btn" onclick="window.history.back()">
+    <button class="header-back-btn mb-4" onclick="window.history.back()">
       ← Quay lại
     </button>
 
@@ -58,16 +60,15 @@ export function initAreaDetail(container, params) {
         </div>
       </div>
 
-      <!-- Area Map View (Mock) -->
-      <div class="card col-span-2 animate-slide-up stagger-2">
-        <div class="card-header">
-          <h2 class="card-title">Bản đồ phân lô</h2>
+      <!-- Area Map View (Leaflet) -->
+      <div class="card col-span-2 animate-slide-up stagger-2" style="display:flex; flex-direction:column; padding:0; overflow:hidden;">
+        <div class="card-header" style="padding: 15px 20px; border-bottom: 1px solid var(--border-subtle);">
+          <h2 class="card-title">Bản đồ phân lô ${area.name}</h2>
         </div>
-        <div class="map-container" style="height: 200px; display:flex; align-items:center; justify-content:center;">
-          <span class="text-muted text-sm">Sơ đồ không gian khu vực ${area.name}</span>
-        </div>
+        <div id="area-mini-map" style="flex:1; min-height: 250px; background: var(--bg-canvas);"></div>
       </div>
     </div>
+
 
     <!-- Zones Table -->
     <div class="card section animate-slide-up stagger-3">
@@ -82,7 +83,7 @@ export function initAreaDetail(container, params) {
               <th>Trạng thái</th>
               <th>Loại cây trồng</th>
               <th>Diện tích</th>
-              <th>Số khu trồng</th>
+              <th>Số thửa đất</th>
               <th>Hành động</th>
             </tr>
           </thead>
@@ -119,4 +120,33 @@ export function initAreaDetail(container, params) {
 
   // Render Alerts
   renderAlertList('area-alerts', alerts);
+
+  // Khởi tạo bản đồ phân lô (Leaflet)
+  setTimeout(() => {
+    const mapEl = document.getElementById('area-mini-map');
+    if (!mapEl) return;
+    
+    // Zoom in deeper than overview map (zoom level 13)
+    const areaMap = L.map(mapEl).setView([area.gps.lat, area.gps.lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OSM'
+    }).addTo(areaMap);
+
+    // Sinh thửa đất
+    const dynamicPlots = generatePlotsForCoordinate(area.gps.lat, area.gps.lng, area.name);
+    
+    L.geoJSON(dynamicPlots, {
+      style: { color: '#ffffff', weight: 2, fillColor: '#10b981', fillOpacity: 0.6 },
+      onEachFeature: function(feature, layer) {
+        const props = feature.properties;
+        layer.on('mouseover', e => e.target.setStyle({ fillOpacity: 0.9, weight: 3 }));
+        layer.on('mouseout', e => e.target.setStyle({ fillOpacity: 0.6, weight: 2 }));
+        layer.bindTooltip(`<strong>${props.name}</strong><br>Cây trồng: ${props.crop}<br>Diện tích: ${props.area}`, { direction: 'top' });
+      }
+    }).addTo(areaMap);
+    
+    // Thêm marker trung tâm
+    L.marker([area.gps.lat, area.gps.lng]).addTo(areaMap)
+     .bindPopup(`<strong>${area.name}</strong><br/>Trạm quản lý trung tâm`);
+  }, 100);
 }

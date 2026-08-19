@@ -477,3 +477,28 @@ export function getEnvironmentOverview() {
     windSpeed: { avg: 2.6, min: 0.8, max: 4.5, unit: 'm/s', label: 'Tốc độ gió', icon: '🌬' },
   };
 }
+
+// ──────────────────────────────────────────
+// REAL-TIME SIMULATION
+// ──────────────────────────────────────────
+export function simulateRealtimeUpdate() {
+  // Update battery and signals slightly
+  DEVICES.forEach(d => {
+    if (d.online) {
+      if (Math.random() > 0.8) d.signal += (Math.random() > 0.5 ? 1 : -1);
+      if (Math.random() > 0.95 && d.battery > 0) d.battery -= 1;
+      d.lastSeen = new Date().toISOString();
+    }
+  });
+  
+  // Randomly update env stats
+  const env = getEnvironmentOverview();
+  
+  // Notify listeners
+  if (window.appState && typeof window.appState.onDataUpdated === 'function') {
+    window.appState.onDataUpdated();
+  }
+}
+
+// Start simulation tick
+setInterval(simulateRealtimeUpdate, 30000);

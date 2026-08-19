@@ -21,7 +21,7 @@ export function renderDeviceCard(device) {
         </div>
       </div>
       
-      <div style="text-align: right;">
+      <div class="device-battery-info">
         <div class="text-sm font-bold ${device.battery < 20 ? 'text-critical' : 'text-primary'}">
           ${device.battery}% 🔋
         </div>

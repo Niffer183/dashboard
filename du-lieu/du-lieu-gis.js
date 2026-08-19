@@ -102,3 +102,60 @@ export const NDVI_OVERLAY = {
     [108.0051, 11.9396]  // bottom left
   ]
 };
+
+// ============================================
+// HÀM TỰ SINH TỌA ĐỘ THỬA ĐẤT ĐỘNG
+// ============================================
+export function generatePlotsForCoordinate(centerLat, centerLng, communeName) {
+  const features = [];
+  // Random số lượng lô từ 2 đến 5
+  const numPlots = 2 + Math.floor(Math.random() * 4);
+  
+  // Kích thước 1 lô xấp xỉ 100m - 200m
+  const baseSize = 0.0015; 
+  
+  const crops = ['Lúa', 'Ngô', 'Rau xanh', 'Cà chua', 'Dưa hấu', 'Cam', 'Bưởi', 'Chè', 'Cà phê'];
+
+  for (let i = 0; i < numPlots; i++) {
+    // Tọa độ góc trên bên trái của lô
+    const plotLat = centerLat + (Math.random() - 0.5) * 0.01;
+    const plotLng = centerLng + (Math.random() - 0.5) * 0.01;
+    
+    // Kích thước lô ngẫu nhiên
+    const w = baseSize * (0.8 + Math.random() * 0.5);
+    const h = baseSize * (0.8 + Math.random() * 0.5);
+    
+    const crop = crops[Math.floor(Math.random() * crops.length)];
+    const status = Math.random() > 0.8 ? 'warning' : 'ok';
+    const areaHa = ((w * 111) * (h * 111)).toFixed(1); // 1 độ ~ 111km
+
+    features.push({
+      type: "Feature",
+      properties: {
+        id: `plot-auto-${i}`,
+        name: `Thửa số ${i + 1} - ${communeName.split('(')[0].trim()}`,
+        area: `${areaHa} ha`,
+        crop: crop,
+        status: status,
+        history: [
+          { date: new Date().toLocaleDateString('vi-VN'), action: "Tưới tự động", amount: "20m³" }
+        ]
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [plotLng, plotLat],
+          [plotLng + w, plotLat],
+          [plotLng + w, plotLat - h],
+          [plotLng, plotLat - h],
+          [plotLng, plotLat]
+        ]]
+      }
+    });
+  }
+
+  return {
+    type: "FeatureCollection",
+    features: features
+  };
+}

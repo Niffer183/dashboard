@@ -411,6 +411,40 @@ export const ALERTS = [
 ];
 
 // ──────────────────────────────────────────
+// PLOTS (Thửa đất) - Generated from Zones
+// ──────────────────────────────────────────
+export function getAllPlots() {
+  const plots = [];
+  let plotIdCounter = 1;
+  ZONES.forEach(zone => {
+    const area = AREAS.find(a => a.id === zone.areaId);
+    const plotArea = (zone.area_hectares / zone.plotCount).toFixed(1);
+    
+    for (let i = 1; i <= zone.plotCount; i++) {
+      const randomStatus = Math.random();
+      let status = 'ok';
+      if (randomStatus > 0.8) status = 'warning';
+      if (randomStatus > 0.95) status = 'critical';
+      // Giữ nguyên trạng thái offline nếu vùng đó offline
+      if (zone.status === 'offline') status = 'offline';
+
+      plots.push({
+        id: `plot-${String(plotIdCounter++).padStart(3, '0')}`,
+        name: `Thửa ${i}`,
+        zoneId: zone.id,
+        zoneName: zone.name,
+        areaId: zone.areaId,
+        areaName: area ? area.name : 'Không xác định',
+        area_hectares: parseFloat(plotArea),
+        crop: zone.crop,
+        status: status
+      });
+    }
+  });
+  return plots;
+}
+
+// ──────────────────────────────────────────
 // SUMMARY HELPERS
 // ──────────────────────────────────────────
 export function getSystemSummary() {

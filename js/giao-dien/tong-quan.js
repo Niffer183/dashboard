@@ -17,8 +17,8 @@ export function initOverview(container) {
     <!-- 1. KPI Cards -->
     <div class="grid-4 section">
       <div id="kpi-areas" class="kpi-card-wrapper" data-nav="#/areas"></div>
-      <div id="kpi-zones" class="kpi-card-wrapper" data-nav="#/areas"></div>
-      <div id="kpi-plots" class="kpi-card-wrapper" data-nav="#/areas"></div>
+      <div id="kpi-zones" class="kpi-card-wrapper" data-nav="#/zones"></div>
+      <div id="kpi-plots" class="kpi-card-wrapper" data-nav="#/plots"></div>
       <div id="kpi-devices" class="kpi-card-wrapper" data-nav="#/devices"></div>
     </div>
 

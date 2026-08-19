@@ -16,6 +16,8 @@ import { initMapView } from './giao-dien/ban-do.js';
 import { initAlertsView } from './giao-dien/canh-bao.js';
 import { initDeviceList } from './giao-dien/danh-sach-thiet-bi.js';
 import { initSettingsView } from './giao-dien/cai-dat.js';
+import { initZoneList } from './giao-dien/danh-sach-vung-trong.js';
+import { initPlotList } from './giao-dien/danh-sach-thua-dat.js';
 
 // Global State
 const state = {
@@ -28,7 +30,9 @@ const ROUTES = {
   '#/map': { view: initMapView, navId: 'map' },
   '#/areas': { view: initAreaList, navId: 'areas' },
   '#/area/': { view: initAreaDetail, navId: 'areas', isParam: true },
+  '#/zones': { view: initZoneList, navId: 'areas' },
   '#/zone/': { view: initZoneDetail, navId: 'areas', isParam: true },
+  '#/plots': { view: initPlotList, navId: 'areas' },
   '#/device/': { view: initDeviceDetail, navId: 'devices', isParam: true },
   '#/devices': { view: initDeviceList, navId: 'devices' },
   '#/alerts': { view: initAlertsView, navId: 'alerts' },

@@ -1450,7 +1450,493 @@ button {
 }
 
 /* ============================================
-   22. LEAFLET OVERRIDES
+   22. WINDY-STYLE WEATHER MAP
+   ============================================ */
+
+/* --- Weather Map Container (full-screen within page) --- */
+.weather-map-wrapper {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 130px);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.weather-map-wrapper #leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* --- Weather Bottom Control Bar (Windy-style) --- */
+.weather-bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  padding: 12px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform var(--transition-normal);
+}
+
+.weather-layer-tabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.weather-layer-btn {
+  padding: 7px 16px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-family: var(--font-family);
+}
+
+.weather-layer-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+}
+
+.weather-layer-btn.active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.1);
+}
+
+.weather-layer-btn .btn-icon {
+  font-size: 15px;
+}
+
+/* --- Gradient Legend Bar --- */
+.weather-gradient-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weather-gradient-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--radius-full);
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.weather-gradient-labels {
+  display: flex;
+  justify-content: space-between;
+  flex: 1;
+  margin-top: 2px;
+}
+
+.weather-gradient-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Weather Temperature Marker on Map --- */
+.weather-temp-marker {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.weather-temp-marker .temp-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.weather-temp-marker .temp-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-family);
+}
+
+/* --- Weather Info Panel (Side Panel) --- */
+.weather-info-panel.visible {
+  display: flex !important;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.weather-panel-header {
+  padding: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.weather-panel-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.weather-panel-level {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-primary-hover);
+}
+
+.weather-panel-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.weather-panel-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.weather-panel-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--text-primary);
+}
+
+/* Weather hero section */
+.weather-panel-hero {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.weather-hero-icon {
+  font-size: 48px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.weather-hero-temp {
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-hero-temp .temp-unit {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.weather-hero-condition {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Weather stats grid */
+.weather-panel-stats {
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.weather-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.weather-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.weather-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Weather forecast */
+.weather-panel-forecast {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.weather-forecast-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.weather-forecast-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.02);
+  transition: background var(--transition-fast);
+}
+
+.weather-forecast-row:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.weather-forecast-day {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 55px;
+}
+
+.weather-forecast-icon {
+  font-size: 18px;
+  width: 30px;
+  text-align: center;
+}
+
+.weather-forecast-temps {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-forecast-high {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.weather-forecast-low {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.weather-forecast-rain {
+  font-size: 11px;
+  color: #1E88E5;
+  min-width: 45px;
+  text-align: right;
+  font-weight: 500;
+}
+
+/* --- Wind Compass --- */
+.wind-compass {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.wind-compass-arrow {
+  font-size: 18px;
+  transition: transform 0.5s ease;
+  color: #1E88E5;
+}
+
+/* --- Navigation buttons over map --- */
+.weather-nav-buttons {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weather-nav-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.weather-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text-primary);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+/* --- Wind Canvas Overlay --- */
+.wind-canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 450;
+}
+
+/* --- Rain Canvas Overlay --- */
+.rain-canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 440;
+}
+
+/* --- Weather Animations --- */
+@keyframes rain-fall {
+  0% { transform: translateY(-10px); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+@keyframes sun-glow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(255, 160, 0, 0.4)); }
+  50% { filter: drop-shadow(0 0 12px rgba(255, 160, 0, 0.8)); }
+}
+
+@keyframes storm-flash {
+  0%, 90%, 100% { opacity: 1; }
+  92% { opacity: 0.3; }
+  94% { opacity: 1; }
+  96% { opacity: 0.5; }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.weather-hero-icon.sunny {
+  animation: sun-glow 3s ease-in-out infinite;
+}
+
+.weather-hero-icon.stormy {
+  animation: storm-flash 4s ease-in-out infinite;
+}
+
+.weather-hero-icon.floating {
+  animation: float-gentle 3s ease-in-out infinite;
+}
+
+/* --- Windy-style Leaflet Tooltip Override --- */
+.leaflet-tooltip.weather-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: var(--font-family);
+  font-size: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.leaflet-tooltip.weather-tooltip::before {
+  border-top-color: rgba(255, 255, 255, 0.95);
+}
+
+.weather-tooltip-title {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.weather-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.weather-tooltip-row .tt-icon {
+  width: 16px;
+  text-align: center;
+}
+
+/* ============================================
+   23. LEAFLET OVERRIDES
    ============================================ */
 .leaflet-popup-content-wrapper {
   background: var(--bg-card);
